@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "ZecTip"
+description = "A mobile-first Zcash tipping app concept for ZECathon, with an educational privacy landing page, validated tipping form, transaction preview, and clearly labeled simulated demo flow. Real wallet payments and shielded transaction claims are not enabled."
+version = "1.0.0"
+id = "artifacts/zectip"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18217
+
+[services.development]
+run = "pnpm --filter @workspace/zectip run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/zectip", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/zectip/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18217"
+BASE_PATH = "/"
