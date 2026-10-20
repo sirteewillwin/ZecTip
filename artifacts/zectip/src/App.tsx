@@ -5,6 +5,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { ArrowDownRight, ArrowRight, CheckCircle2, ChevronDown, CircleAlert, EyeOff, ExternalLink, Fingerprint, LoaderCircle, LockKeyhole, Menu, MessageSquareText, Radio, ShieldCheck, Sparkles, Terminal, X } from 'lucide-react';
+import { validateTipFields } from '@/lib/tip-validation';
+import type { DemoPaymentStatus } from '@/lib/zcash-wallet-adapter';
 import {
   Route,
   Switch,
@@ -19,28 +21,27 @@ function Home() {
   const [amount, setAmount] = useState('');
   const [message, setMessage] = useState('');
   const [errors, setErrors] = useState<{ recipient?: string; amount?: string }>({});
-  const [status, setStatus] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
+  const [status, setStatus] = useState<'idle' | DemoPaymentStatus>('idle');
   const [showPreview, setShowPreview] = useState(false);
   const [demoMenu, setDemoMenu] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
 
-  const formatAddress = (value: string) => value.trim();
   const validate = () => {
-    const next: typeof errors = {};
-    const addr = formatAddress(recipient);
-    if (!addr) next.recipient = 'Enter a Zcash address to continue.';
-    else if (!/^(?:(?:t[13]|zc)[a-zA-Z0-9]{30,}|(?:zs1|u1)[a-zA-Z0-9]{20,})$/i.test(addr)) next.recipient = 'Address format looks incomplete. This check does not verify an address on the network.';
-    if (!amount) next.amount = 'Enter an amount.';
-    else if (!/^\d+(\.\d{1,8})?$/.test(amount) || Number(amount) <= 0) next.amount = 'Use a positive amount with up to 8 decimal places.';
+    const next = validateTipFields(recipient, amount);
     setErrors(next);
     return Object.keys(next).length === 0;
   };
   const beginPreview = () => { if (validate()) { setStatus('idle'); setShowPreview(true); } };
   const simulate = (outcome: 'pending' | 'success' | 'failed') => {
     setShowPreview(false);
-    setStatus(outcome);
+    const demoStatus: DemoPaymentStatus = outcome === 'pending'
+      ? 'demo-pending'
+      : outcome === 'success'
+        ? 'demo-success'
+        : 'demo-failure';
+    setStatus(demoStatus);
     if (outcome === 'pending') {
-      window.setTimeout(() => setStatus((current) => current === 'pending' ? 'success' : current), 2600);
+      window.setTimeout(() => setStatus((current) => current === 'demo-pending' ? 'demo-success' : current), 2600);
     }
     document.getElementById('tip')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
@@ -70,26 +71,32 @@ function Home() {
           </nav>
           <div className="flex items-center gap-3">
             <span className="hidden items-center gap-2 mono text-[10px] text-[#849489] sm:flex"><span className="pulse-dot h-1.5 w-1.5 rounded-full bg-[#46f48a]"/>DEMO ENVIRONMENT</span>
-            <button className="flex h-9 items-center gap-2 border border-[#314237] px-3 text-[11px] font-semibold text-[#cbd9ce] transition hover:border-[#46f48a] hover:text-[#46f48a]" onClick={() => document.getElementById('tip')?.scrollIntoView({ behavior: 'smooth' })} data-testid="button-header-tip"><span className="text-[#46f48a]">+</span> Send a tip</button>
+            <button className="flex h-9 items-center gap-2 border border-[#314237] px-3 text-[11px] font-semibold text-[#cbd9ce] transition hover:border-[#46f48a] hover:text-[#46f48a]" onClick={() => document.getElementById('tip')?.scrollIntoView({ behavior: 'smooth' })} data-testid="button-header-tip"><span className="text-[#46f48a]">+</span> Try demo</button>
             <button aria-label={mobileMenu ? 'Close menu' : 'Open menu'} onClick={() => setMobileMenu(!mobileMenu)} className="p-2 text-[#cbd9ce] md:hidden" data-testid="button-mobile-menu">{mobileMenu ? <X size={18}/> : <Menu size={18}/>}</button>
           </div>
         </div>
         {mobileMenu && <nav className="border-t border-[#1b2a21] px-5 py-3 md:hidden" aria-label="Mobile navigation">{links.map(([label, href]) => <a key={href} href={href} onClick={() => setMobileMenu(false)} className="block py-3 mono text-xs text-[#a4b1a8]" data-testid={`link-mobile-${href.slice(1)}`}>{label}</a>)}</nav>}
       </header>
+      <div className="border-b border-[#234431] bg-[#0d1711] px-4 py-2" data-testid="banner-demo-mode">
+        <p className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-center gap-x-2 text-center mono text-[9px] leading-4 tracking-[.1em] text-[#9baa9f]">
+          <span className="text-[#46f48a]">DEMO MODE</span>
+          <span>· REAL ZEC PAYMENTS ARE NOT ENABLED</span>
+        </p>
+      </div>
 
       <section id="top" className="relative mx-auto max-w-[1180px] px-5 pb-16 pt-16 sm:px-8 sm:pb-24 sm:pt-24">
         <div className="grid-noise pointer-events-none absolute inset-x-0 top-0 h-[520px]"/>
         <div className="relative grid items-center gap-12 lg:grid-cols-[1.08fr_.92fr] lg:gap-20">
           <div className="reveal">
             <div className="mono mb-7 flex items-center gap-3 text-[10px] uppercase tracking-[.18em] text-[#7d9383]"><span className="h-px w-8 bg-[#46f48a]"/>ZECATHON / EXPLORATION 001</div>
-            <h1 className="max-w-[720px] text-[clamp(3.6rem,10vw,7.7rem)] font-semibold leading-[.86] tracking-[-.085em] text-[#e2ebe3]">A little<br/>value.<br/><span className="text-[#46f48a]">A lot more</span><br/>privacy.</h1>
-            <p className="mt-8 max-w-[480px] text-[15px] leading-7 text-[#a2b0a5] sm:text-[17px]">A thoughtful way to explore tipping with Zcash. Send appreciation without making every detail of your generosity a public performance.</p>
+            <h1 className="max-w-[720px] text-[clamp(3.6rem,10vw,7.7rem)] font-semibold leading-[.86] tracking-[-.085em] text-[#e2ebe3]">A little<br/>value.<br/><span className="text-[#46f48a]">A bigger</span><br/>question.</h1>
+            <p className="mt-8 max-w-[480px] text-[15px] leading-7 text-[#a2b0a5] sm:text-[17px]">A thoughtful prototype for tipping with Zcash. Explore generosity without making every detail a public performance.</p>
             <div className="mt-9 flex flex-col gap-3 min-[430px]:flex-row">
               <a href="#tip" data-testid="link-hero-start" className="group inline-flex h-12 items-center justify-center gap-3 bg-[#46f48a] px-5 font-semibold text-[#07100b] transition hover:bg-[#78ffa9]">Try the local demo <ArrowRight size={16} className="transition-transform group-hover:translate-x-1"/></a>
               <a href="#privacy" data-testid="link-hero-privacy" className="inline-flex h-12 items-center justify-center gap-3 border border-[#344338] px-5 text-sm text-[#c1cec4] transition hover:border-[#46f48a]/60">Why privacy matters <ArrowDownRight size={15} className="text-[#46f48a]"/></a>
             </div>
             <div className="mt-12 flex items-center gap-3 border-l border-[#46f48a] pl-4">
-              <span className="mono text-[10px] leading-5 text-[#829186]">NO WALLET CONNECTED<br/>NO NETWORK REQUESTS<br/><span className="text-[#46f48a]">NO FUNDS MOVED</span></span>
+              <span className="mono text-[10px] leading-5 text-[#829186]">NO WALLET CONNECTED<br/>NO ZCASH REQUESTS<br/><span className="text-[#46f48a]">NO FUNDS MOVED</span></span>
             </div>
           </div>
           <div className="reveal-delay relative mx-auto w-full max-w-[500px]">
@@ -97,7 +104,7 @@ function Home() {
             <div className="absolute -right-2 -top-5 mono text-[9px] tracking-[.2em] text-[#769080]">SIGNAL / 01</div>
             <div className="relative border border-[#294333] bg-[#0d1510] p-5 shadow-[0_24px_90px_rgba(0,0,0,.32)] sm:p-7">
               <div className="mb-7 flex items-center justify-between border-b border-[#203128] pb-4">
-                <div className="flex items-center gap-2 mono text-[10px] text-[#84968a]"><span className="h-2 w-2 rounded-full bg-[#46f48a]"/> ZECTIP / PRIVATE BY DESIGN</div><span className="mono text-[9px] text-[#53665a]">v.0.1.0</span>
+                <div className="flex items-center gap-2 mono text-[10px] text-[#84968a]"><span className="h-2 w-2 rounded-full bg-[#46f48a]"/> ZECTIP / LOCAL DEMO MODE</div><span className="mono text-[9px] text-[#53665a]">v.0.1.0</span>
               </div>
               <div className="mono text-[10px] text-[#71877a]">$ composing a gesture…</div>
               <div className="my-5 flex items-baseline gap-3"><span className="text-[64px] font-semibold leading-none tracking-[-.08em] text-[#e2ebe3]">0.025</span><span className="mono text-sm text-[#46f48a]">ZEC</span></div>
@@ -107,7 +114,7 @@ function Home() {
                 <div className="flex justify-between"><span className="text-[#6c7f72]">MODE</span><span className="text-[#46f48a]">LOCAL SIMULATION</span></div>
               </div>
               <div className="mt-6 flex items-center justify-between border-t border-[#203128] pt-4">
-                <div className="flex items-center gap-2 text-xs text-[#9aa99e]"><LockKeyhole size={14} className="text-[#46f48a]"/> A private gesture, not a public spectacle.</div><span className="mono text-[9px] text-[#56715e]">→</span>
+                <div className="flex items-center gap-2 text-xs text-[#9aa99e]"><LockKeyhole size={14} className="text-[#46f48a]"/> An intentional gesture, not a public spectacle.</div><span className="mono text-[9px] text-[#56715e]">→</span>
               </div>
             </div>
             <div className="mt-4 flex justify-between mono text-[9px] tracking-[.13em] text-[#56685c]"><span>SIMULATED INTERFACE</span><span>NO CHAIN ACTIVITY</span></div>
@@ -201,12 +208,12 @@ function Home() {
               <button type="submit" className="group flex h-12 w-full items-center justify-center gap-2 bg-[#46f48a] font-semibold text-[#07100b] transition hover:bg-[#77ffa7]" data-testid="button-review-tip">Review simulated tip <ArrowRight size={16} className="transition-transform group-hover:translate-x-1"/></button>
             </form>
 
-            {showPreview && <div role="dialog" aria-modal="true" aria-labelledby="preview-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" onClick={(e) => { if (e.target === e.currentTarget) setShowPreview(false); }} data-testid="dialog-tip-preview">
-              <div className="w-full max-w-[460px] border border-[#3b5d44] bg-[#0d1510] shadow-2xl">
+            {showPreview && <div role="dialog" aria-modal="true" aria-labelledby="preview-title" className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/75 p-4" onClick={(e) => { if (e.target === e.currentTarget) setShowPreview(false); }} data-testid="dialog-tip-preview">
+              <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-[460px] overflow-y-auto border border-[#3b5d44] bg-[#0d1510] shadow-2xl">
                 <div className="flex items-center justify-between border-b border-[#203128] px-5 py-4"><div className="mono text-[10px] tracking-[.13em] text-[#46f48a]">REVIEW / SIMULATED TIP</div><button onClick={() => setShowPreview(false)} aria-label="Close preview" className="p-1 text-[#9aa99e] hover:text-white" data-testid="button-close-preview"><X size={17}/></button></div>
                 <div className="p-5 sm:p-6"><h3 id="preview-title" className="text-2xl font-semibold tracking-[-.05em]">A gesture, not a transaction.</h3>
                   <div className="mt-6 divide-y divide-[#203128] border-y border-[#203128]">
-                    <div className="flex justify-between gap-3 py-4"><span className="mono text-[10px] text-[#71877a]">TO</span><span className="max-w-[250px] break-all text-right mono text-[10px] text-[#c7d3c9]">{formatAddress(recipient)}</span></div>
+                <div className="flex justify-between gap-3 py-4"><span className="mono text-[10px] text-[#71877a]">TO</span><span className="max-w-[250px] break-all text-right mono text-[10px] text-[#c7d3c9]">{recipient.trim()}</span></div>
                     <div className="flex justify-between py-4"><span className="mono text-[10px] text-[#71877a]">AMOUNT</span><span className="mono text-sm text-[#46f48a]">{amount} ZEC</span></div>
                     {message && <div className="flex justify-between gap-3 py-4"><span className="mono text-[10px] text-[#71877a]">NOTE</span><span className="max-w-[250px] text-right text-xs text-[#c7d3c9]">{message}</span></div>}
                   </div>
@@ -216,17 +223,17 @@ function Home() {
               </div>
             </div>}
 
-            {status !== 'idle' && <div aria-live="polite" aria-atomic="true" className={`border-t px-5 py-5 sm:px-7 ${status === 'failed' ? 'border-[#6a3935] bg-[#2a1715]/60' : status === 'success' ? 'border-[#276740] bg-[#112419]' : 'border-[#35523b] bg-[#111c13]'}`} data-testid={`status-${status}`}>
+            {status !== 'idle' && <div aria-live="polite" aria-atomic="true" className={`border-t px-5 py-5 sm:px-7 ${status === 'demo-failure' ? 'border-[#6a3935] bg-[#2a1715]/60' : status === 'demo-success' ? 'border-[#276740] bg-[#112419]' : 'border-[#35523b] bg-[#111c13]'}`} data-testid={`status-${status}`}>
               <div className="flex items-start gap-3">
-                <span className={`mt-0.5 ${status === 'failed' ? 'text-[#ed786e]' : 'text-[#46f48a]'}`}>{status === 'pending' ? <LoaderCircle className="animate-spin" size={19}/> : status === 'success' ? <CheckCircle2 size={19}/> : <CircleAlert size={19}/>}</span>
+                <span className={`mt-0.5 ${status === 'demo-failure' ? 'text-[#ed786e]' : 'text-[#46f48a]'}`}>{status === 'demo-pending' ? <LoaderCircle className="animate-spin" size={19}/> : status === 'demo-success' ? <CheckCircle2 size={19}/> : <CircleAlert size={19}/>}</span>
                 <div className="flex-1">
-                  <div className={`mono text-[11px] font-medium tracking-[.1em] ${status === 'failed' ? 'text-[#ed8279]' : 'text-[#69f39a]'}`}>{status === 'pending' ? 'SIMULATED / PENDING' : status === 'success' ? 'SIMULATED / SUCCESS' : 'SIMULATED / FAILURE'}</div>
-                  <p className="mt-1.5 text-xs leading-5 text-[#a2b0a5]">{status === 'pending' ? 'A local demo state is running. No request has been made.' : status === 'success' ? 'Demo outcome only. No real payment was sent or confirmed, and no payment was shielded.' : 'Demo failure path reached. No real payment was attempted.'}</p>
-                  {status === 'pending' && <button onClick={() => simulate('success')} className="mt-3 text-left mono text-[10px] text-[#46f48a] underline underline-offset-4" data-testid="button-finish-pending">Finish pending demo as success</button>}
+                  <div className={`mono text-[11px] font-medium tracking-[.1em] ${status === 'demo-failure' ? 'text-[#ed8279]' : 'text-[#69f39a]'}`}>{status === 'demo-pending' ? 'SIMULATED / PENDING' : status === 'demo-success' ? 'SIMULATED / SUCCESS' : 'SIMULATED / FAILURE'}</div>
+                  <p className="mt-1.5 text-xs leading-5 text-[#a2b0a5]">{status === 'demo-pending' ? 'A local demo state is running. No payment request has been made.' : status === 'demo-success' ? 'Simulated result only. No real payment was sent or confirmed, and no shielded transfer occurred.' : 'Demo failure path reached. No real payment was attempted.'}</p>
+                  {status === 'demo-pending' && <button onClick={() => simulate('success')} className="mt-3 text-left mono text-[10px] text-[#46f48a] underline underline-offset-4" data-testid="button-finish-pending">Finish pending demo as success</button>}
                 </div>
                 <button onClick={reset} aria-label="Dismiss status" className="p-1 text-[#8fa095] hover:text-white" data-testid="button-dismiss-status"><X size={15}/></button>
               </div>
-              {status !== 'pending' && <button onClick={reset} className="mt-4 border border-[#3a4b3e] px-3 py-2 mono text-[9px] tracking-[.08em] text-[#b6c4b9] hover:border-[#46f48a]/60 hover:text-[#46f48a]" data-testid="button-reset-demo">RESET DEMO</button>}
+              {status !== 'demo-pending' && <button onClick={reset} className="mt-4 border border-[#3a4b3e] px-3 py-2 mono text-[9px] tracking-[.08em] text-[#b6c4b9] hover:border-[#46f48a]/60 hover:text-[#46f48a]" data-testid="button-reset-demo">RESET DEMO</button>}
             </div>}
           </div>
         </div>
@@ -240,7 +247,7 @@ function Home() {
       </section>
       <footer className="mx-auto flex max-w-[1180px] flex-col gap-4 px-5 py-7 sm:flex-row sm:items-center sm:justify-between sm:px-8">
         <a href="#top" className="inline-flex items-center gap-2 text-sm font-semibold tracking-[-.03em]" data-testid="link-footer-home"><span className="flex h-6 w-6 items-center justify-center border border-[#46f48a]/40 text-[#46f48a]"><Terminal size={12}/></span>zec<span className="text-[#46f48a]">tip</span></a>
-        <p className="max-w-[550px] text-[10px] leading-5 text-[#66766b]">ZecTip is a ZECathon concept prototype. Simulation only: no wallet connection, network requests, real transactions, or shielded payments.</p>
+        <p className="max-w-[550px] text-[10px] leading-5 text-[#66766b]">ZecTip is a ZECathon concept prototype. Simulation only: no wallet connection, Zcash requests, real transactions, or shielded payments.</p>
         <a href="#privacy" className="inline-flex items-center gap-1 mono text-[9px] text-[#74877a] hover:text-[#46f48a]" data-testid="link-footer-privacy">PRIVACY NOTES <ExternalLink size={11}/></a>
       </footer>
     </main>
